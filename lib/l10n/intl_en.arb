@@ -49,6 +49,7 @@
      "exitDialog":"Are Sure You Want to Exit?",
      "yes":"Yes",
      "no":"No",
-     "employee":"Employee"
+     "employee":"Employee",
+      "reasonForChange": "Reason For Change"
 
     }

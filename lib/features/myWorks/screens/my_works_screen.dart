@@ -1,12 +1,11 @@
 import 'package:animated_float_action_button/animated_floating_action_button.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dots_ticcket_module/common/size_configure.dart';
 import 'package:dots_ticcket_module/common/colors.dart';
 import 'package:dots_ticcket_module/common/common.dart';
 import 'package:dots_ticcket_module/features/myWorks/provider/my_works_provider.dart';
 import 'package:dots_ticcket_module/features/myWorks/screens/add_work_screen.dart';
 import 'package:dots_ticcket_module/features/myWorks/widgets/my_works_widgets.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/services/api_services.dart';
 import 'package:dots_ticcket_module/utils/excel_generator.dart';
 import 'package:dots_ticcket_module/utils/pdf_generator.dart';
 import 'package:flutter/material.dart';
@@ -22,11 +21,16 @@ class MyWorksScreen extends StatefulWidget {
 
 class _MyWorksScreenState extends State<MyWorksScreen> {
   List chartValues = [];
+  String empCode = "DOT002";
+  String empName = "Muhammed faris kk";
+  String empemail = "Muhammedfariskk@gmail.com";
+  String empDesignation = "Developer";
+
   final GlobalKey<AnimatedFloatingActionButtonState> fabKey = GlobalKey();
   @override
   void initState() {
     Provider.of<MyWorksProvider>(context, listen: false).clear();
-
+    ApiServices.getDropdownValues(empCode, context);
     super.initState();
   }
 
@@ -35,24 +39,18 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
     return Consumer<MyWorksProvider>(builder: (context, provider, child) {
       return Builder(builder: (context) {
         AppLocalizations language = AppLocalizations.of(context)!;
-        return StreamBuilder(
-          stream: FirebaseFirestore.instance.collection("works").snapshots(),
+        return FutureBuilder(
+          future: ApiServices.getAllWorks(empCode),
           builder: (context, AsyncSnapshot snapshot) {
-            if (snapshot.hasData) {
-              List data = snapshot.data.docs;
-              dotsData.works.clear();
-              for (var element in data) {
-                dotsData.works.add(Works.fromJson(element.data()));
-              }
+            if (snapshot.hasData && !provider.isLoading) {
+              var data = snapshot.data.data["result"];
+              List works = data[5];
 
-              getChartData();
-              List<Works> worksAfterFilterd = dotsData.works;
-              worksAfterFilterd =
-                  worksAfterFilterd.reversed.map((e) => e).toList();
+              getChartData(data);
 
               if (provider.dateRangeToSort.isNotEmpty) {
-                worksAfterFilterd = worksAfterFilterd.where((element) {
-                  List dateParts = element.startDate.split("/");
+                works = works.where((element) {
+                  List dateParts = element["END_DATE"].split("-");
                   DateTime date = DateTime(int.parse(dateParts[2]),
                       int.parse(dateParts[1]), int.parse(dateParts[0]));
 
@@ -66,36 +64,35 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                   return false;
                 }).toList();
               }
-              if (provider.selectedTypeForSort != "All") {
-                worksAfterFilterd = worksAfterFilterd
-                    .where((element) =>
-                        element.type == provider.selectedTypeForSort)
-                    .toList();
-              }
+              // if (provider.selectedTypeForSort != "All") {
+              //   works = works
+              //       .where((element) =>
+              //           element.type == provider.selectedTypeForSort)
+              //       .toList();
+              // }
               if (provider.selectedPriorityForSort != "All") {
-                worksAfterFilterd = worksAfterFilterd
+                works = works
                     .where((element) =>
-                        element.priority ==
-                        "${provider.selectedPriorityForSort} Priority")
+                        getPriorityInString(
+                            element["PRIORITY_LOW"],
+                            element["PRIORITY_MID"],
+                            element["PRIORITY_HIGH"]) ==
+                        provider.selectedPriorityForSort)
                     .toList();
               }
               if (provider.selectedStatusForSort != "All") {
-                worksAfterFilterd = worksAfterFilterd
+                works = works
                     .where((element) =>
-                        element.status == provider.selectedStatusForSort)
+                        element["WORK_STATUS"] ==
+                        provider.selectedStatusForSort)
                     .toList();
               }
               if (provider.isSearchEnabled) {
-                worksAfterFilterd = worksAfterFilterd
+                works = works
                     .where((element) =>
-                        element.id.contains(provider.searchKeyword))
+                        element["WORKID"].contains(provider.searchKeyword))
                     .toList();
               }
-              dotsData.works = worksAfterFilterd;
-              // dataGrid = DataGrid(
-              //   sfKey: GlobalKey<SfDataGridState>(),
-              //   works: dotsData.works,
-              // );
               return Scaffold(
                 backgroundColor: kMainColor,
                 appBar: AppBar(
@@ -105,7 +102,7 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                       Icons.arrow_back_ios,
                       color: Colors.white,
                     ),
-                    onPressed: () {},
+                    onPressed: () async {},
                   ),
                   title: myText(language.myWorks,
                       fontSize: 2.5, color: Colors.white),
@@ -188,12 +185,12 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   mySortByDateRangeWidget(provider, context),
-                                  mySortDropDown(
-                                      ["All", "individual", "support"],
-                                      (String? value) {
-                                    provider.selectedTypeForSort = value!;
-                                    provider.rebuild();
-                                  }, "Type", provider.selectedTypeForSort),
+                                  // mySortDropDown(
+                                  //     ["All", "individual", "support"],
+                                  //     (String? value) {
+                                  //   provider.selectedTypeForSort = value!;
+                                  //   provider.rebuild();
+                                  // }, "Type", provider.selectedTypeForSort),
                                   mySortDropDown(["All", "Low", "Mid", "High"],
                                       (String? value) {
                                     provider.selectedPriorityForSort = value!;
@@ -202,9 +199,9 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                                       provider.selectedPriorityForSort),
                                   mySortDropDown([
                                     "All",
-                                    "In Progress",
-                                    "Completed",
-                                    "On Hold"
+                                    "PENDING",
+                                    "COMPLETED",
+                                    "ON_HOLD"
                                   ], (String? value) {
                                     provider.selectedStatusForSort = value!;
                                     provider.rebuild();
@@ -213,7 +210,7 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                               ))
                           : const SizedBox(),
                       Expanded(
-                        child: worksAfterFilterd.isEmpty
+                        child: works.isEmpty
                             ? Center(
                                 child: Image.asset(
                                   "assets/icons/folder.png",
@@ -222,13 +219,13 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                                 ),
                               )
                             : ListView.builder(
-                                itemCount: worksAfterFilterd.length,
+                                itemCount: works.length,
                                 itemBuilder: (context, index) {
-                                  Works workDetails = dotsData.works[index];
+                                  Map workDetails = works[index];
 
                                   //my works tile
                                   return myWorksTile(context, index,
-                                      workDetails, provider, language);
+                                      workDetails, provider, language, empCode);
                                 },
                               ),
                       ),
@@ -247,7 +244,9 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                           Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => AddWorkScreen()));
+                                  builder: (context) => AddWorkScreen(
+                                        empCode: empCode,
+                                      )));
                         },
                         child: Image.asset(
                           "assets/icons/add.png",
@@ -261,15 +260,17 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                         heroTag: null,
                         onPressed: () async {
                           fabKey.currentState?.animate();
-                          if (dotsData.works.isEmpty) {
+                          if (works.isEmpty) {
                             mySnackBar("No Works Fount", context);
                             return;
                           }
-                          if (!await ExcelGenerator.generateExcel(provider) &&
+                          if (!await ExcelGenerator.generateExcel(
+                                  provider: provider,
+                                  works: works,
+                                  empName: empName) &&
                               context.mounted) {
                             mySnackBar("No Supported App Found", context);
                           }
-                          // dataGrid.generateExcel(context);
                         },
                         child: Image.asset(
                           "assets/icons/xls.png",
@@ -289,16 +290,19 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                         ),
                         onPressed: () async {
                           fabKey.currentState?.animate();
-                          if (dotsData.works.isEmpty) {
+                          if (works.isEmpty) {
                             mySnackBar("No Works Fount", context);
                             return;
                           }
-                          if (!await PdfGenerator.generatePdf(provider) &&
+                          if (!await PdfGenerator.generatePdf(
+                                  provider: provider,
+                                  works: works,
+                                  empName: empName,
+                                  email: empemail,
+                                  designation: empDesignation) &&
                               context.mounted) {
                             mySnackBar("No Supported App Found", context);
                           }
-
-                          //dataGrid.generatePdf(context);
                         },
                       ),
                     ],
@@ -307,39 +311,19 @@ class _MyWorksScreenState extends State<MyWorksScreen> {
                     animatedIconData: AnimatedIcons.menu_close),
               );
             }
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
+            return const LoadingScreen();
           },
         );
       });
     });
   }
 
-  getChartData() {
+  getChartData(List data) {
     chartValues.clear();
 
-    chartValues.add(dotsData.works
-        .where((element) => element.status == "Completed")
-        .toList()
-        .length
-        .toDouble());
-    chartValues.add(dotsData.works
-        .where((element) => element.status == "In Progress")
-        .toList()
-        .length
-        .toDouble());
-    chartValues.add(dotsData.works
-        .where((element) => element.status == "On Hold")
-        .toList()
-        .length
-        .toDouble());
-    chartValues.add(dotsData.works
-        .where((element) => getDateDiffrence(element.endDate) < 1)
-        .toList()
-        .length
-        .toDouble());
+    chartValues.add(data[1][0]["COMPLETED"].toDouble());
+    chartValues.add(data[0][0]["PENDING"].toDouble());
+    chartValues.add(data[2][0]["ON_HOLD"].toDouble());
+    chartValues.add(data[3][0]["OVERDUE"].toDouble());
   }
 }

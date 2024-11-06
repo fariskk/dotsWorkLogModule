@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:dots_ticcket_module/common/common.dart';
 import 'package:dots_ticcket_module/features/myWorks/provider/my_works_provider.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
 
 import 'package:excel/excel.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,195 +8,210 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ExcelGenerator {
-  static Future<bool> generateExcel(MyWorksProvider provider) async {
-    int filterDetailsIndex = 2;
-    var excel = Excel.createExcel();
+  static Future<bool> generateExcel({
+    required MyWorksProvider provider,
+    required List works,
+    required String empName,
+  }) async {
+    try {
+      int filterDetailsIndex = 2;
+      var excel = Excel.createExcel();
 
-    Sheet sheet1 = excel["Faris kk"];
-    excel.delete("Sheet1");
+      Sheet sheet1 = excel[empName];
+      excel.delete("Sheet1");
 
-    sheet1.setDefaultColumnWidth(15);
-    //heading style
+      sheet1.setDefaultColumnWidth(15);
+      //heading style
 
-    CellStyle hedingStyle = CellStyle(
-      fontFamily: GoogleFonts.manrope().fontFamily,
-      bold: true,
-      backgroundColorHex: ExcelColor.cyan300,
-      fontSize: 10,
-      bottomBorder: Border(
-          borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-      rightBorder: Border(
-          borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-      leftBorder: Border(
-          borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-      topBorder: Border(
-          borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-      verticalAlign: VerticalAlign.Center,
-      horizontalAlign: HorizontalAlign.Center,
-    );
+      CellStyle hedingStyle = CellStyle(
+        fontFamily: GoogleFonts.manrope().fontFamily,
+        bold: true,
+        backgroundColorHex: ExcelColor.cyan300,
+        fontSize: 10,
+        bottomBorder: Border(
+            borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
+        rightBorder: Border(
+            borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
+        leftBorder: Border(
+            borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
+        topBorder: Border(
+            borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
+        verticalAlign: VerticalAlign.Center,
+        horizontalAlign: HorizontalAlign.Center,
+      );
 //Filter details
-    var headingCell1 = sheet1.cell(CellIndex.indexByString('E1'));
-    headingCell1.value = TextCellValue(
-        "Date: ${toDDMMMYYY(dotsData.works.first.startDate)} To ${toDDMMMYYY(dotsData.works.last.startDate)}");
-    if (provider.selectedTypeForSort != "All") {
-      var headingCell2 =
-          sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
+      var headingCell1 = sheet1.cell(CellIndex.indexByString('E1'));
+      headingCell1.value = TextCellValue(
+          "Date: ${toDDMMMYYY(works.first["START_DATE"])} To ${toDDMMMYYY(works.last["START_DATE"])}");
+      if (provider.selectedTypeForSort != "All") {
+        var headingCell2 =
+            sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
 
-      headingCell2.value =
-          TextCellValue("Type : ${provider.selectedTypeForSort}");
-      filterDetailsIndex++;
-    }
-
-    if (provider.selectedPriorityForSort != "All") {
-      var headingCell3 =
-          sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
-
-      headingCell3.value =
-          TextCellValue("Priority : ${provider.selectedPriority} Priority");
-      filterDetailsIndex++;
-    }
-
-    if (provider.selectedStatusForSort != "All") {
-      var headingCell4 =
-          sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
-      headingCell4.value =
-          TextCellValue("Status : ${provider.selectedStatusForSort}");
-    }
-
-    //heading
-
-    var taskIdHeadingCell = sheet1.cell(CellIndex.indexByString('A5'));
-    var clientNameHeadingCell = sheet1.cell(CellIndex.indexByString('B5'));
-    var taskNameHeadingCell = sheet1.cell(CellIndex.indexByString('C5'));
-    var assignedByHeadingCell = sheet1.cell(CellIndex.indexByString('D5'));
-    var startDateHeadingCell = sheet1.cell(CellIndex.indexByString('E5'));
-    var dueDateHeadingCell = sheet1.cell(CellIndex.indexByString('F5'));
-    var finalDeliveryDateHeadingCell =
-        sheet1.cell(CellIndex.indexByString('G5'));
-    var priorityHeadingCell = sheet1.cell(CellIndex.indexByString('H5'));
-    var statusHeadingCell = sheet1.cell(CellIndex.indexByString('I5'));
-    var commentsHeadingCell = sheet1.cell(CellIndex.indexByString('j5'));
-    var progressHeadingCell = sheet1.cell(CellIndex.indexByString('K5'));
-    var dependenciesHeadingCell = sheet1.cell(CellIndex.indexByString('L5'));
-
-    taskIdHeadingCell.value = TextCellValue("Task ID");
-    taskIdHeadingCell.cellStyle = hedingStyle;
-
-    clientNameHeadingCell.value = TextCellValue("Client Name");
-    clientNameHeadingCell.cellStyle = hedingStyle;
-
-    taskNameHeadingCell.value = TextCellValue("Task Name");
-    taskNameHeadingCell.cellStyle = hedingStyle;
-
-    assignedByHeadingCell.value = TextCellValue("Assigned  by");
-    assignedByHeadingCell.cellStyle = hedingStyle;
-
-    startDateHeadingCell.value = TextCellValue("Start Date");
-    startDateHeadingCell.cellStyle = hedingStyle;
-
-    dueDateHeadingCell.value = TextCellValue("Due Date");
-    dueDateHeadingCell.cellStyle = hedingStyle;
-
-    finalDeliveryDateHeadingCell.value = TextCellValue("Final Delivery Date");
-    finalDeliveryDateHeadingCell.cellStyle = hedingStyle;
-
-    priorityHeadingCell.value = TextCellValue("Priority");
-    priorityHeadingCell.cellStyle = hedingStyle;
-
-    statusHeadingCell.value = TextCellValue("Status");
-    statusHeadingCell.cellStyle = hedingStyle;
-
-    commentsHeadingCell.value = TextCellValue("Comments");
-    commentsHeadingCell.cellStyle = hedingStyle;
-
-    progressHeadingCell.value = TextCellValue("Progress (%)");
-    progressHeadingCell.cellStyle = hedingStyle;
-
-    dependenciesHeadingCell.value = TextCellValue("Dependencies");
-    dependenciesHeadingCell.cellStyle = hedingStyle;
-    //heading end
-    //content
-
-    for (int i = 0; i < dotsData.works.length; i++) {
-      Works work = dotsData.works[i];
-
-      CellStyle contentStyle = CellStyle(
-          verticalAlign: VerticalAlign.Center,
-          horizontalAlign: HorizontalAlign.Center,
-          backgroundColorHex: getCellColor(work.status),
-          bottomBorder: Border(
-              borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-          rightBorder: Border(
-              borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-          leftBorder: Border(
-              borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin),
-          topBorder: Border(
-              borderColorHex: ExcelColor.black, borderStyle: BorderStyle.Thin));
-      var taskIdCell = sheet1.cell(CellIndex.indexByString('A${i + 6}'));
-      var clientNameCell = sheet1.cell(CellIndex.indexByString('B${i + 6}'));
-      var taskNameCell = sheet1.cell(CellIndex.indexByString('C${i + 6}'));
-      var assignedByCell = sheet1.cell(CellIndex.indexByString('D${i + 6}'));
-      var startDateCell = sheet1.cell(CellIndex.indexByString('E${i + 6}'));
-      var dueDateCell = sheet1.cell(CellIndex.indexByString('F${i + 6}'));
-      var finalDeliveryDateCell =
-          sheet1.cell(CellIndex.indexByString('G${i + 6}'));
-      var priorityCell = sheet1.cell(CellIndex.indexByString('H${i + 6}'));
-      var statusCell = sheet1.cell(CellIndex.indexByString('I${i + 6}'));
-      var commentsCell = sheet1.cell(CellIndex.indexByString('j${i + 6}'));
-      var progressCell = sheet1.cell(CellIndex.indexByString('K${i + 6}'));
-      var dependenciesCell = sheet1.cell(CellIndex.indexByString('L${i + 6}'));
-      taskIdCell.value = TextCellValue(work.id);
-      clientNameCell.value = TextCellValue(work.client);
-      taskNameCell.value = TextCellValue(work.taskName);
-      assignedByCell.value = TextCellValue(work.assignedBy);
-      startDateCell.value = TextCellValue(toDDMMMYYY(work.startDate));
-      dueDateCell.value = TextCellValue(toDDMMMYYY(work.endDate));
-      finalDeliveryDateCell.value = TextCellValue(toDDMMMYYY(work.endDate));
-      priorityCell.value = TextCellValue(work.priority);
-      statusCell.value = TextCellValue(work.status);
-      commentsCell.value = TextCellValue(work.comments);
-      progressCell.value = IntCellValue(work.progress);
-      dependenciesCell.value = TextCellValue(work.dependencies);
-      taskIdCell.cellStyle = contentStyle.copyWith(
-          boldVal: true, fontColorHexVal: ExcelColor.redAccent);
-      clientNameCell.cellStyle = contentStyle;
-      taskNameCell.cellStyle = contentStyle;
-      assignedByCell.cellStyle = contentStyle;
-      startDateCell.cellStyle = contentStyle;
-      dueDateCell.cellStyle = contentStyle;
-      finalDeliveryDateCell.cellStyle = contentStyle;
-      priorityCell.cellStyle = contentStyle;
-      statusCell.cellStyle = contentStyle;
-      commentsCell.cellStyle = contentStyle;
-      progressCell.cellStyle = contentStyle;
-      dependenciesCell.cellStyle =
-          contentStyle.copyWith(textWrappingVal: TextWrapping.WrapText);
-    }
-    var fileBytes = excel.save();
-    var directory = await getApplicationCacheDirectory();
-
-    File file = File(
-        "${directory.path}/Work_log-FarisKK-${getDate(DateTime.now()).replaceAll("/", "-")}.xlsx")
-      ..createSync(recursive: true)
-      ..writeAsBytesSync(fileBytes!);
-
-    return await OpenFile.open(file.path).then((result) {
-      if (result.message == "done") {
-        return true;
+        headingCell2.value =
+            TextCellValue("Type : ${provider.selectedTypeForSort}");
+        filterDetailsIndex++;
       }
 
+      if (provider.selectedPriorityForSort != "All") {
+        var headingCell3 =
+            sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
+
+        headingCell3.value =
+            TextCellValue("Priority : ${provider.selectedPriority} Priority");
+        filterDetailsIndex++;
+      }
+
+      if (provider.selectedStatusForSort != "All") {
+        var headingCell4 =
+            sheet1.cell(CellIndex.indexByString('A$filterDetailsIndex'));
+        headingCell4.value =
+            TextCellValue("Status : ${provider.selectedStatusForSort}");
+      }
+
+      //heading
+
+      var taskIdHeadingCell = sheet1.cell(CellIndex.indexByString('A5'));
+      var clientNameHeadingCell = sheet1.cell(CellIndex.indexByString('B5'));
+      var taskNameHeadingCell = sheet1.cell(CellIndex.indexByString('C5'));
+      var assignedByHeadingCell = sheet1.cell(CellIndex.indexByString('D5'));
+      var startDateHeadingCell = sheet1.cell(CellIndex.indexByString('E5'));
+      var dueDateHeadingCell = sheet1.cell(CellIndex.indexByString('F5'));
+      var finalDeliveryDateHeadingCell =
+          sheet1.cell(CellIndex.indexByString('G5'));
+      var priorityHeadingCell = sheet1.cell(CellIndex.indexByString('H5'));
+      var statusHeadingCell = sheet1.cell(CellIndex.indexByString('I5'));
+      var commentsHeadingCell = sheet1.cell(CellIndex.indexByString('j5'));
+      var progressHeadingCell = sheet1.cell(CellIndex.indexByString('K5'));
+      var dependenciesHeadingCell = sheet1.cell(CellIndex.indexByString('L5'));
+
+      taskIdHeadingCell.value = TextCellValue("Task ID");
+      taskIdHeadingCell.cellStyle = hedingStyle;
+
+      clientNameHeadingCell.value = TextCellValue("Client Name");
+      clientNameHeadingCell.cellStyle = hedingStyle;
+
+      taskNameHeadingCell.value = TextCellValue("Task Name");
+      taskNameHeadingCell.cellStyle = hedingStyle;
+
+      assignedByHeadingCell.value = TextCellValue("Assigned  by");
+      assignedByHeadingCell.cellStyle = hedingStyle;
+
+      startDateHeadingCell.value = TextCellValue("Start Date");
+      startDateHeadingCell.cellStyle = hedingStyle;
+
+      dueDateHeadingCell.value = TextCellValue("Due Date");
+      dueDateHeadingCell.cellStyle = hedingStyle;
+
+      finalDeliveryDateHeadingCell.value = TextCellValue("Final Delivery Date");
+      finalDeliveryDateHeadingCell.cellStyle = hedingStyle;
+
+      priorityHeadingCell.value = TextCellValue("Priority");
+      priorityHeadingCell.cellStyle = hedingStyle;
+
+      statusHeadingCell.value = TextCellValue("Status");
+      statusHeadingCell.cellStyle = hedingStyle;
+
+      commentsHeadingCell.value = TextCellValue("Comments");
+      commentsHeadingCell.cellStyle = hedingStyle;
+
+      progressHeadingCell.value = TextCellValue("Progress (%)");
+      progressHeadingCell.cellStyle = hedingStyle;
+
+      dependenciesHeadingCell.value = TextCellValue("Dependencies");
+      dependenciesHeadingCell.cellStyle = hedingStyle;
+      //heading end
+      //content
+
+      for (int i = 0; i < works.length; i++) {
+        Map work = works[i];
+
+        CellStyle contentStyle = CellStyle(
+            verticalAlign: VerticalAlign.Center,
+            horizontalAlign: HorizontalAlign.Center,
+            backgroundColorHex: getCellColor(work["WORK_STATUS"]),
+            bottomBorder: Border(
+                borderColorHex: ExcelColor.black,
+                borderStyle: BorderStyle.Thin),
+            rightBorder: Border(
+                borderColorHex: ExcelColor.black,
+                borderStyle: BorderStyle.Thin),
+            leftBorder: Border(
+                borderColorHex: ExcelColor.black,
+                borderStyle: BorderStyle.Thin),
+            topBorder: Border(
+                borderColorHex: ExcelColor.black,
+                borderStyle: BorderStyle.Thin));
+        var taskIdCell = sheet1.cell(CellIndex.indexByString('A${i + 6}'));
+        var clientNameCell = sheet1.cell(CellIndex.indexByString('B${i + 6}'));
+        var taskNameCell = sheet1.cell(CellIndex.indexByString('C${i + 6}'));
+        var assignedByCell = sheet1.cell(CellIndex.indexByString('D${i + 6}'));
+        var startDateCell = sheet1.cell(CellIndex.indexByString('E${i + 6}'));
+        var dueDateCell = sheet1.cell(CellIndex.indexByString('F${i + 6}'));
+        var finalDeliveryDateCell =
+            sheet1.cell(CellIndex.indexByString('G${i + 6}'));
+        var priorityCell = sheet1.cell(CellIndex.indexByString('H${i + 6}'));
+        var statusCell = sheet1.cell(CellIndex.indexByString('I${i + 6}'));
+        var commentsCell = sheet1.cell(CellIndex.indexByString('j${i + 6}'));
+        var progressCell = sheet1.cell(CellIndex.indexByString('K${i + 6}'));
+        var dependenciesCell =
+            sheet1.cell(CellIndex.indexByString('L${i + 6}'));
+        taskIdCell.value = TextCellValue(work["WORKID"].toString());
+        clientNameCell.value = TextCellValue(work["CLIENT"].toString());
+        taskNameCell.value = TextCellValue(work["TASK_NAME"]);
+        assignedByCell.value = TextCellValue(work["ASSIGNED_BY"].toString());
+        startDateCell.value = TextCellValue(toDDMMMYYY(work["START_DATE"]));
+        dueDateCell.value = TextCellValue(toDDMMMYYY(work["END_DATE"]));
+        finalDeliveryDateCell.value =
+            TextCellValue(toDDMMMYYY(work["END_DATE"]));
+        priorityCell.value = TextCellValue(getPriorityInString(
+            work["PRIORITY_LOW"], work["PRIORITY_MID"], work["PRIORITY_HIGH"]));
+        statusCell.value = TextCellValue(work["WORK_STATUS"]);
+        commentsCell.value = TextCellValue(work["WORK_NOTES"]);
+        progressCell.value = IntCellValue(work["PROGRESS"]);
+        dependenciesCell.value = TextCellValue(work["DEPENDENCIES"]);
+        taskIdCell.cellStyle = contentStyle.copyWith(
+            boldVal: true, fontColorHexVal: ExcelColor.redAccent);
+        clientNameCell.cellStyle = contentStyle;
+        taskNameCell.cellStyle = contentStyle;
+        assignedByCell.cellStyle = contentStyle;
+        startDateCell.cellStyle = contentStyle;
+        dueDateCell.cellStyle = contentStyle;
+        finalDeliveryDateCell.cellStyle = contentStyle;
+        priorityCell.cellStyle = contentStyle;
+        statusCell.cellStyle = contentStyle;
+        commentsCell.cellStyle = contentStyle;
+        progressCell.cellStyle = contentStyle;
+        dependenciesCell.cellStyle =
+            contentStyle.copyWith(textWrappingVal: TextWrapping.WrapText);
+      }
+      var fileBytes = excel.save();
+      var directory = await getApplicationCacheDirectory();
+
+      File file = File(
+          "${directory.path}/Work_log-FarisKK-${getDate(DateTime.now()).replaceAll("/", "-")}.xlsx")
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(fileBytes!);
+
+      return await OpenFile.open(file.path).then((result) {
+        if (result.message == "done") {
+          return true;
+        }
+
+        return false;
+      });
+    } catch (e) {
       return false;
-    });
+    }
   }
 }
 
 ExcelColor getCellColor(String status) {
   switch (status) {
-    case "Completed":
+    case "COMPLETED":
       return ExcelColor.green;
-    case "On Hold":
+    case "ON_HOLD":
       return ExcelColor.orange;
-    case "In Progress":
+    case "PENDING":
       return ExcelColor.yellow;
     default:
       return ExcelColor.white;

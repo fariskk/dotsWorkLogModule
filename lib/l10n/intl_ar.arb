@@ -46,8 +46,9 @@
       "assignTo":"تعيين إلى",
       "selectWorkTitle":"اختر عنوان العمل",
        "workGroups":"مجموعة العمل",
-        "exitDialog":"هل أنت متأكد أنك تريد الخروج؟",
- "yes":"نعم",
-     "no":"لا",
-      "employee":"موظف"
+   "exitDialog":"هل أنت متأكد أنك تريد الخروج؟",
+      "yes":"نعم",
+      "no":"لا",
+      "employee":"موظف",
+      "reasonForChange": "سبب التغيير"
 }

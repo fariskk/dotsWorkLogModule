@@ -1,19 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dots_ticcket_module/common/size_configure.dart';
 import 'package:dots_ticcket_module/common/colors.dart';
 import 'package:dots_ticcket_module/common/common.dart';
 import 'package:dots_ticcket_module/features/worklog/provider/sub_works_provider.dart';
 import 'package:dots_ticcket_module/features/worklog/screens/add_sub_work_screen.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
+import 'package:dots_ticcket_module/services/api_services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_xlider/flutter_xlider.dart';
-import 'package:open_file/open_file.dart';
 import 'package:flutter_gen/gen_l10n/app_localization.dart';
 
-FlutterSlider progressSliderWidget(
-    Works workDetails, SubWorkProvider provider) {
+FlutterSlider progressSliderWidget(Map workDetails, SubWorkProvider provider) {
   return FlutterSlider(
     handler: FlutterSliderHandler(
         child: const Icon(
@@ -22,9 +20,9 @@ FlutterSlider progressSliderWidget(
     )),
     trackBar: const FlutterSliderTrackBar(
         activeTrackBar: BoxDecoration(color: kMainColor)),
-    values: [provider.newProgress ?? workDetails.progress.toDouble()],
+    values: [provider.newProgress ?? workDetails["PROGRESS"].toDouble()],
     max: 100.1,
-    min: workDetails.progress.toDouble(),
+    min: workDetails["PROGRESS"].toDouble(),
     onDragCompleted: (a, value, b) {
       provider.newProgress = value;
     },
@@ -48,18 +46,17 @@ SizedBox subWorksAttachFilesection(
                   type: FileType.custom,
                   allowedExtensions: [
                     'jpg',
-                    'xls',
-                    'xlsx',
-                    'pdf',
-                    'xlsm',
-                    'csv',
                   ],
                 );
                 if (files != null) {
+                  if (files.count > 3) {
+                    mySnackBar("File count is Grater Than 3", context);
+                    return;
+                  }
                   for (var file in files.files) {
-                    if (file.size / 1024 > 10000) {
+                    if (file.size / 1024 > 400) {
                       mySnackBar(
-                          "${file.name} Size is Grater Than 10 MB", context);
+                          "${file.name} Size is Grater Than 400 KB", context);
                       continue;
                     }
                     provider.subWorkSttachments.add(Attachments.fromJson(
@@ -162,8 +159,7 @@ Stack timeDisplayWidget(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   time != null
-                      ? myText(time.format(context).substring(0, 5),
-                          fontSize: 1.8)
+                      ? myText("${time.hour}:${time.minute}", fontSize: 1.8)
                       : myText("00:00", fontSize: 1.8),
                   mySpacer(width: 5),
                   time != null
@@ -183,8 +179,8 @@ Stack timeDisplayWidget(
   );
 }
 
-List<Widget> expandedContentWidget(
-    SubWorks subWorkDetails, BuildContext context, AppLocalizations language) {
+List<Widget> expandedContentWidget(Map subWorkDetails, List subWorkAttachments,
+    BuildContext context, AppLocalizations language) {
   return [
     Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -199,16 +195,16 @@ List<Widget> expandedContentWidget(
           size: 17,
         ),
         mySpacer(width: SizeConfigure.widthMultiplier! * 1.5),
-        myText(subWorkDetails.submittedBy,
+        myText(subWorkDetails["EMPLOYEE_NAME"] ?? "",
             fontSize: 1.4,
             fontWeight: FontWeight.w600,
             maxLength: 12,
             color: kMainColor),
       ],
     ),
-    Text(subWorkDetails.taskDecription),
+    Text(subWorkDetails["WORK_DESCRIPTION"]),
     Visibility(
-      visible: subWorkDetails.notes.isNotEmpty,
+      visible: subWorkDetails["WORK_NOTS"].isNotEmpty,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -216,12 +212,12 @@ List<Widget> expandedContentWidget(
               fontSize: 1.6,
               fontWeight: FontWeight.w700,
               color: const Color.fromARGB(255, 162, 155, 155)),
-          Text(subWorkDetails.notes),
+          Text(subWorkDetails["WORK_NOTS"]),
         ],
       ),
     ),
     Visibility(
-      visible: subWorkDetails.blockersAndChallanges.isNotEmpty,
+      visible: subWorkDetails["WORK_CHALLENGES"].isNotEmpty,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -229,12 +225,12 @@ List<Widget> expandedContentWidget(
               fontSize: 1.6,
               fontWeight: FontWeight.w700,
               color: const Color.fromARGB(255, 162, 155, 155)),
-          Text(subWorkDetails.blockersAndChallanges),
+          Text(subWorkDetails["WORK_CHALLENGES"]),
         ],
       ),
     ),
     Visibility(
-      visible: subWorkDetails.attachments.isNotEmpty,
+      visible: subWorkAttachments.isNotEmpty,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -247,14 +243,11 @@ List<Widget> expandedContentWidget(
             width: MediaQuery.of(context).size.width,
             child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: subWorkDetails.attachments.length,
+                itemCount: subWorkAttachments.length,
                 itemBuilder: (context, index) {
                   return InkWell(
                     splashColor: Colors.white,
-                    onTap: () async {
-                      await OpenFile.open(
-                          subWorkDetails.attachments[index].path);
-                    },
+                    onTap: () async {},
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       margin: const EdgeInsets.all(5),
@@ -271,7 +264,7 @@ List<Widget> expandedContentWidget(
                             color: kMainColor,
                           ),
                           mySpacer(width: SizeConfigure.widthMultiplier! * 1.5),
-                          myText(subWorkDetails.attachments[index].name,
+                          myText(subWorkAttachments[index]["DAILYWORK_FILE"],
                               maxLength: 18, fontSize: 1),
                         ],
                       ),
@@ -286,15 +279,23 @@ List<Widget> expandedContentWidget(
 }
 
 Padding myExpanstionTile(
-  SubWorks subWorkDetails,
-  String subWorkId,
+  List subWorkAttachments,
+  Map subWorkDetails,
   SubWorkProvider provider,
   BuildContext context,
   AppLocalizations language,
-  Works work,
+  Map work,
   int index,
+  String workId,
+  String empCode,
 ) {
   var language = AppLocalizations.of(context)!;
+  List attachmentsOfThisSubWork = [];
+  for (var attachment in subWorkAttachments) {
+    if (attachment["WORK_SUB_ID"] == subWorkDetails["WORK_SUB_ID"]) {
+      attachmentsOfThisSubWork.add(attachment);
+    }
+  }
   return Padding(
     padding: const EdgeInsets.all(5.0),
     child: Slidable(
@@ -320,13 +321,21 @@ Padding myExpanstionTile(
                             child: myText(language.cancel)),
                         TextButton(
                             onPressed: () async {
-                              await FirebaseFirestore.instance
-                                  .collection(subWorkId)
-                                  .doc(subWorkDetails.id)
-                                  .delete();
                               if (context.mounted) {
                                 Navigator.pop(context);
                               }
+                              provider.isLoading = true;
+                              provider.rebuild();
+                              var res = await ApiServices.deleteSubWork(empCode,
+                                  workId, subWorkDetails["WORK_SUB_ID"]);
+                              if (res.data["result"].runtimeType == bool) {
+                                if (res.data["result"]) {
+                                  mySnackBar("Deleted Successfully", context);
+                                } else {
+                                  mySnackBar("Failed To Delete", context);
+                                }
+                              }
+                              provider.isLoading = false;
                               provider.rebuild();
                             },
                             child: myText(language.ok))
@@ -344,9 +353,12 @@ Padding myExpanstionTile(
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => AddSubWorkScreen(
                         isToEdit: true,
-                        subWorkId: subWorkId,
-                        subWorkToEdit: subWorkDetails,
+                        empCode: empCode,
+                        workId: workId,
                         work: work,
+                        subWorkToEdit: subWorkDetails,
+                        subWorkAttachments: attachmentsOfThisSubWork,
+                        subWorkId: subWorkDetails["WORK_SUB_ID"],
                       )));
             },
             foregroundColor: Colors.black,
@@ -383,12 +395,12 @@ Padding myExpanstionTile(
               decoration: const BoxDecoration(
                   color: Color.fromARGB(255, 126, 147, 168),
                   borderRadius: BorderRadius.all(Radius.circular(10))),
-              child: myExpanstionChildWidhet(subWorkDetails)),
+              child: myExpanstiontileDateWidget(subWorkDetails)),
           subtitle: Localizations.override(
             locale: const Locale("en"),
             context: context,
             child: myText(
-                "${to12Hours(subWorkDetails.startTime)} To ${to12Hours(subWorkDetails.endTime)} (${subWorkDetails.totalTime} hours)",
+                "${to12Hours(subWorkDetails["START_TIME"])} To ${to12Hours(subWorkDetails["END_TIME"])} (${subWorkDetails["TOTAL_TIME"]} hours)",
                 fontSize: 1.1,
                 color: kMainColor),
           ),
@@ -397,27 +409,31 @@ Padding myExpanstionTile(
             children: [
               SizedBox(
                   width: SizeConfigure.widthMultiplier! * 45,
-                  child: myText(subWorkDetails.taskName, fontSize: 1.9)),
-              myText(subWorkDetails.status,
-                  color: subWorkDetails.status == "Completed"
+                  child: myText(subWorkDetails["WORK_TITLE"], fontSize: 1.9)),
+              myText(
+                  subWorkDetails["WORK_COMPLETED_FLAG"] == true
+                      ? "completed"
+                      : "pending",
+                  color: subWorkDetails["WORK_COMPLETED_FLAG"] == true
                       ? Colors.green
                       : Colors.orange,
                   fontSize: 1.4)
             ],
           ),
-          children: expandedContentWidget(subWorkDetails, context, language),
+          children: expandedContentWidget(
+              subWorkDetails, attachmentsOfThisSubWork, context, language),
         ),
       ),
     ),
   );
 }
 
-Column myExpanstionChildWidhet(SubWorks subWorkDetails) {
+Column myExpanstiontileDateWidget(Map subWorkDetails) {
   return Column(
     children: [
-      myText(subWorkDetails.date.toString().split("/").first,
+      myText(toDDMMMYYY(subWorkDetails["CURRENT_DATE"]).split("-").first,
           fontSize: 2.5, color: Colors.white, fontWeight: FontWeight.bold),
-      myText(getMountString(subWorkDetails.date.toString().split("/")[1]),
+      myText(toDDMMMYYY(subWorkDetails["CURRENT_DATE"]).split("-")[1],
           fontSize: 1.4, color: const Color.fromARGB(255, 240, 240, 240))
     ],
   );

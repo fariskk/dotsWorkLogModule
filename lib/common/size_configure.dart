@@ -8,7 +8,7 @@ class SizeConfigure {
 
   static double? textMultiplier;
   static double? imageSizeMultiplier;
-  // static double? heightMultiplier;
+  static double? heightMultiplier;
   static double? widthMultiplier;
   static bool isPortrait = true;
   static bool isMobilePortrait = false;
@@ -33,7 +33,7 @@ class SizeConfigure {
 
     textMultiplier = _blockHeight;
     imageSizeMultiplier = _blockWidth;
-    //heightMultiplier = _blockHeight;
+    heightMultiplier = _blockHeight;
     widthMultiplier = _blockWidth;
   }
 }

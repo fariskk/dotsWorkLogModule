@@ -1,6 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:dots_ticcket_module/common/common.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
+import 'package:dots_ticcket_module/services/api_services.dart';
 import 'package:flutter/material.dart';
 
 class MyWorksProvider extends ChangeNotifier {
@@ -16,7 +20,7 @@ class MyWorksProvider extends ChangeNotifier {
   String? assignedBy;
   bool isSearchEnabled = false;
   String searchKeyword = "";
-
+  bool isLoading = false;
   String? client;
   double progressToUpdate = 0;
   List<Attachments> attachments = [];
@@ -25,13 +29,10 @@ class MyWorksProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> submit(String workId, String taskName, String comments,
+  Future<bool> submit(String taskName, String empCode, String comments,
       String dependencies, BuildContext context) async {
     try {
-      final fir = FirebaseFirestore.instance.collection("works");
-
-      if (workId.isEmpty ||
-          taskName.isEmpty ||
+      if (taskName.isEmpty ||
           startDate == null ||
           endDate == null ||
           assignedBy == null ||
@@ -40,50 +41,64 @@ class MyWorksProvider extends ChangeNotifier {
         mySnackBar("Please Fill all Fields", context);
         return false;
       } else {
+        isLoading = true;
+        rebuild();
+        List base64Attacments = [];
+        for (var e in attachments) {
+          final bytes = File(e.path).readAsBytesSync();
+          String img64 = base64Encode(bytes);
+          base64Attacments.add({"name": e.name, "desc": img64});
+        }
+
         Map<String, dynamic> newWork = {
-          "id": workId,
-          "type": "individual",
-          "progress": 0,
-          "client": client,
-          "company": selectedWorkGroup,
-          "createdDate": getDate(DateTime.now()),
-          "taskName": taskName,
-          "assignedBy": assignedBy,
-          "startDate": getDate(startDate!),
-          "endDate": getDate(endDate!),
-          "priority": "$selectedPriority Priority",
-          "status": "In Progress",
-          "attachments": attachments.map((e) => e.toJson()).toList(),
-          "comments": comments,
-          "subWork": workId,
-          "dependencies": dependencies,
+          "M_FLAG": 3,
+          "EMPCODE": empCode,
+          "CLIENT": client!.split("-").first,
+          "WORKGROUP": selectedWorkGroup!.split("-").first,
+          "TASK_NAME": taskName,
+          "ASSIGNED_BY": assignedBy!.split("-").first,
+          "START_DATE": getDate(startDate!).split("-").reversed.join("-"),
+          "END_DATE": getDate(endDate!).split("-").reversed.join("-"),
+          "PRIORITY_LOW": selectedPriority == "Low" ? true : null,
+          "PRIORITY_MID": selectedPriority == "Mid" ? true : null,
+          "PRIORITY_HIGH": selectedPriority == "High" ? true : null,
+          "ATTACHMENT_FILE": base64Attacments,
+          "WORK_DESCRIPTION": comments,
+          "DEPENDENCIES": dependencies,
         };
 
-        await fir.doc(workId).set(newWork);
+        FormData formData = FormData.fromMap({"data": jsonEncode(newWork)});
 
-        FirebaseFirestore.instance.collection(workId);
-        notifyListeners();
+        var res = await ApiServices.createNewWork(formData);
+        if (res.data["result"].runtimeType == bool) {
+          if (res.data["result"]) {
+            mySnackBar("Created Successfully", context);
+          } else {
+            mySnackBar("Failed To create", context);
+          }
+        }
+        isLoading = false;
+        rebuild();
         return true;
       }
     } catch (e) {
+      isLoading = false;
+      rebuild();
       mySnackBar("Somthing Went Wrong", context);
       return false;
     }
   }
 
   Future<bool> update(
-      Works workToEdit,
-      String workId,
       String taskName,
       String comments,
       String dependencies,
       BuildContext context,
-      String reason) async {
+      String reason,
+      String empCode,
+      String workId) async {
     try {
-      final fir = FirebaseFirestore.instance.collection("works");
-
-      if (workId.isEmpty ||
-          taskName.isEmpty ||
+      if (taskName.isEmpty ||
           startDate == null ||
           endDate == null ||
           assignedBy == null ||
@@ -93,26 +108,56 @@ class MyWorksProvider extends ChangeNotifier {
         mySnackBar("Please Fill all Fields", context);
         return false;
       } else {
-        String oldDocId = workToEdit.id;
-        workToEdit.id = workId;
-        workToEdit.progress = progressToUpdate.toInt();
-        workToEdit.client = client!;
-        workToEdit.company = selectedWorkGroup!;
-        workToEdit.taskName = taskName;
-        workToEdit.assignedBy = assignedBy!;
-        workToEdit.startDate = getDate(startDate!);
-        workToEdit.endDate = getDate(endDate!);
-        workToEdit.attachments = attachments;
-        workToEdit.priority = "$selectedPriority Priority";
-        workToEdit.comments = comments;
-        workToEdit.dependencies = dependencies;
-        await fir.doc(oldDocId).delete();
-        await fir.doc(workId).set(workToEdit.toJson());
+        isLoading = true;
+        rebuild();
+        List base64Attacments = [];
+        for (var e in attachments) {
+          late String img64;
 
-        notifyListeners();
+          final bytes = File(e.path).readAsBytesSync();
+          img64 = base64Encode(bytes);
+
+          base64Attacments.add({"name": e.name, "desc": img64});
+        }
+
+        Map<String, dynamic> newWork = {
+          "M_FLAG": 6,
+          "EMP_code": empCode,
+          "WORKID": workId,
+          "WORKGROUP": selectedWorkGroup!.split("-").first,
+          "ASSIGNED_BY": assignedBy!.split("-").first,
+          "CLIENT": client!.split("-").first,
+          "TASK_NAME": taskName,
+          "START_DATE": getDate(startDate!).split("-").reversed.join("-"),
+          "END_DATE": getDate(endDate!).split("-").reversed.join("-"),
+          "DEPENDENCIES": dependencies,
+          "PRIORITY_LOW": selectedPriority == "Low" ? true : null,
+          "PRIORITY_MID": selectedPriority == "Mid" ? true : null,
+          "PRIORITY_HIGH": selectedPriority == "High" ? true : null,
+          "WORK_DESCRIPTION": comments,
+          "ATTACHMENT_FILE": base64Attacments,
+          "WORK_PROGRESS": progressToUpdate,
+          "EDITED_REASON": reason
+        };
+
+        FormData formData = FormData.fromMap({"data": jsonEncode(newWork)});
+
+        var res = await ApiServices.updateWork(formData);
+        if (res.data["result"].runtimeType == bool) {
+          if (res.data["result"]) {
+            mySnackBar("Updated Successfully", context);
+          } else {
+            mySnackBar("Failed To Update", context);
+          }
+        }
+        isLoading = false;
+        rebuild();
+
         return true;
       }
     } catch (e) {
+      isLoading = false;
+      rebuild();
       mySnackBar("Somthing Went Wrong", context);
       return false;
     }

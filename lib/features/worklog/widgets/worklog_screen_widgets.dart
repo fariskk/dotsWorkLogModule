@@ -3,7 +3,8 @@ import 'package:dots_ticcket_module/common/size_configure.dart';
 import 'package:dots_ticcket_module/common/colors.dart';
 import 'package:dots_ticcket_module/common/common.dart';
 import 'package:dots_ticcket_module/features/worklog/screens/my_sub_works_screen.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
+import 'package:dots_ticcket_module/services/api_services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
@@ -28,18 +29,17 @@ SizedBox myAttachFilesection(BuildContext context, WorklogProvider provider,
                   type: FileType.custom,
                   allowedExtensions: [
                     'jpg',
-                    'xls',
-                    'xlsx',
-                    'pdf',
-                    'xlsm',
-                    'csv',
                   ],
                 );
                 if (files != null) {
                   for (var file in files.files) {
-                    if (file.size / 1024 > 10000) {
+                    if (files.count > 3) {
+                      mySnackBar("File count is Grater Than 3", context);
+                      return;
+                    }
+                    if (file.size / 1024 > 400) {
                       mySnackBar(
-                          "${file.name} Size is Grater Than 10 MB", context);
+                          "${file.name} Size is Grater Than 400 KB", context);
                       continue;
                     }
                     provider.attachments.add(Attachments.fromJson(
@@ -115,7 +115,7 @@ SizedBox myAttachFilesection(BuildContext context, WorklogProvider provider,
 }
 
 Row myCircularProgressWidget(
-    BuildContext context, Works workDetails, AppLocalizations language) {
+    BuildContext context, Map workDetails, AppLocalizations language) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
@@ -133,10 +133,10 @@ Row myCircularProgressWidget(
                   strokeWidth: 22,
                   strokeCap: StrokeCap.round,
                   color: kMainColor,
-                  value: workDetails.progress / 100,
+                  value: workDetails["PROGRESS"] / 100,
                 ),
               ),
-              myText("${workDetails.progress}%",
+              myText("${workDetails["PROGRESS"]}%",
                   fontSize: 1.1, fontWeight: FontWeight.bold)
             ],
           )),
@@ -149,17 +149,17 @@ Row myCircularProgressWidget(
             myText(language.assignedBY,
                 fontSize: 1, color: Colors.grey, fontWeight: FontWeight.w700),
             myText(
-              workDetails.assignedBy,
+              workDetails["ASSIGNED_BY"].replaceAll("_", " ").split("-").last,
               fontSize: 1.4,
             ),
             myText(language.workGroups,
                 fontSize: 1, color: Colors.grey, fontWeight: FontWeight.w700),
             myText(
-              workDetails.company,
+              workDetails["WORK_GROUP"].replaceAll("_", " ").split("-").last,
               fontSize: 1.4,
             ),
             Visibility(
-              visible: workDetails.dependencies.isNotEmpty,
+              visible: workDetails["DEPENDENCIES"].isNotEmpty,
               child: Column(
                 children: [
                   myText(language.dependencies,
@@ -170,7 +170,7 @@ Row myCircularProgressWidget(
               ),
             ),
             Text(
-              workDetails.dependencies,
+              workDetails["DEPENDENCIES"],
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -181,19 +181,39 @@ Row myCircularProgressWidget(
 }
 
 Visibility myWorkAttacmentsDisplayWidget(
-    Works workDetails, BuildContext context) {
+    List attachments, BuildContext context) {
   return Visibility(
-    visible: workDetails.attachments.isNotEmpty,
+    visible: attachments.isNotEmpty,
     child: SizedBox(
       height: SizeConfigure.widthMultiplier! * 9,
       width: MediaQuery.of(context).size.width,
       child: ListView.builder(
           scrollDirection: Axis.horizontal,
-          itemCount: workDetails.attachments.length,
+          itemCount: attachments.length,
           itemBuilder: (context, index) {
             return InkWell(
-              onTap: () async {
-                await OpenFile.open(workDetails.attachments[index].path);
+              onTap: () {
+                showDialog(
+                    barrierColor: Colors.black,
+                    context: context,
+                    builder: (context) {
+                      return SizedBox(
+                        height: SizeConfigure.widthMultiplier! * 80,
+                        width: SizeConfigure.widthMultiplier! * 80,
+                        child: Center(
+                          child: Image.network(
+                            "${ApiServices.baseUrl}dndApi/uploads/WORK_LOG_FILE/${attachments[index]["ATTACHMENT_FILE"]}",
+                            errorBuilder: (context, error, stackTrace) =>
+                                myText("Image Not Available",
+                                    fontSize: 2,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red),
+                            loadingBuilder: (context, child, loadingProgress) =>
+                                const CircularProgressIndicator(),
+                          ),
+                        ),
+                      );
+                    });
               },
               child: Container(
                 padding: const EdgeInsets.all(3),
@@ -212,7 +232,7 @@ Visibility myWorkAttacmentsDisplayWidget(
                       color: kMainColor,
                     ),
                     mySpacer(width: SizeConfigure.widthMultiplier! * 1.5),
-                    myText(workDetails.attachments[index].name,
+                    myText(attachments[index]["ATTACHMENT_FILE"] ?? "",
                         maxLength: 18, fontSize: 1),
                   ],
                 ),
@@ -226,12 +246,11 @@ Visibility myWorkAttacmentsDisplayWidget(
 Row myStatusSection(
     WorklogProvider provider, BuildContext context, AppLocalizations language) {
   return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Expanded(
         child: SizedBox(
-          height: SizeConfigure.widthMultiplier! * 14,
           child: DropdownButtonFormField(
+              dropdownColor: Colors.white,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               value: provider.selectedStatus,
               items: provider.statusTypes
@@ -247,34 +266,34 @@ Row myStatusSection(
               onChanged: (value) {}),
         ),
       ),
+      mySpacer(width: SizeConfigure.widthMultiplier! * 2),
       Visibility(
         visible: provider.selectedStatus == "Assign To" ? true : false,
-        child: Container(
-            margin: const EdgeInsets.only(left: 10),
-            height: SizeConfigure.widthMultiplier! * 14,
-            width: SizeConfigure.widthMultiplier! * 40,
-            child: myTypeHeadDropDown(
-                items: Provider.of<CommonProvider>(context, listen: false)
-                    .employees,
-                hintText: "Employee",
-                labelText: language.assignedBY,
-                value: provider.assignTo,
-                onSelected: (asiignedBy) {
-                  provider.assignTo = asiignedBy;
-                  provider.rebuild();
-                },
-                onCancel: () {
-                  provider.assignTo = null;
+        child: Expanded(
+          child: Container(
+              child: myTypeHeadDropDown(
+                  items: Provider.of<CommonProvider>(context, listen: false)
+                      .employees,
+                  hintText: "Employee",
+                  labelText: language.assignedBY,
+                  value: provider.assignTo,
+                  onSelected: (asiignedBy) {
+                    provider.assignTo = asiignedBy;
+                    provider.rebuild();
+                  },
+                  onCancel: () {
+                    provider.assignTo = null;
 
-                  provider.rebuild();
-                })),
+                    provider.rebuild();
+                  })),
+        ),
       ),
     ],
   );
 }
 
 Container myClientAndDueDateSection(BuildContext context,
-    WorklogProvider provider, Works workDetails, AppLocalizations language) {
+    WorklogProvider provider, Map workDetails, AppLocalizations language) {
   return Container(
     padding: const EdgeInsets.all(10),
     decoration: const BoxDecoration(color: Colors.white, boxShadow: [
@@ -315,7 +334,12 @@ Container myClientAndDueDateSection(BuildContext context,
                   myText(language.client, color: Colors.grey, fontSize: 1.0),
                   SizedBox(
                     width: SizeConfigure.widthMultiplier! * 25,
-                    child: myText(workDetails.client, fontSize: 1.2),
+                    child: myText(
+                        workDetails["CLIENT_NAME"]
+                            .replaceAll("_", " ")
+                            .split("-")
+                            .last,
+                        fontSize: 1.2),
                   ),
                   mySpacer(height: SizeConfigure.widthMultiplier! * 1),
                   Row(
@@ -366,11 +390,11 @@ Container myClientAndDueDateSection(BuildContext context,
                   mySpacer(height: SizeConfigure.widthMultiplier! * 1),
                   myText(language.dueDate, color: Colors.grey, fontSize: 1),
                   mySpacer(height: SizeConfigure.widthMultiplier! * .2),
-                  myText(toDDMMMYYY(workDetails.endDate), fontSize: 1.2),
+                  myText(toDDMMMYYY(workDetails["DUE_DATE"]), fontSize: 1.2),
                   mySpacer(height: SizeConfigure.widthMultiplier! * .7),
                   myText(
-                      getDateDiffrence(workDetails.endDate) > 0
-                          ? "${getDateDiffrence(workDetails.endDate)} ${language.daysLeft}"
+                      getDateDiffrence(workDetails["DUE_DATE"]) > 0
+                          ? "${getDateDiffrence(workDetails["DUE_DATE"])} ${language.daysLeft}"
                           : language.overdue,
                       fontSize: .9,
                       color: Colors.red)
@@ -384,8 +408,8 @@ Container myClientAndDueDateSection(BuildContext context,
   );
 }
 
-AppBar myAppBar(WorklogProvider provider, BuildContext context,
-    Works workDetails, AppLocalizations language) {
+AppBar myAppBar(WorklogProvider provider, BuildContext context, Map workDetails,
+    String workId, String empCode, AppLocalizations language) {
   return AppBar(
     backgroundColor: kMainColor,
     leading: IconButton(
@@ -397,7 +421,7 @@ AppBar myAppBar(WorklogProvider provider, BuildContext context,
         Navigator.pop(context);
       },
     ),
-    title: myText(workDetails.id, fontSize: 2.1, color: Colors.white),
+    title: myText(workDetails["TASK_NAME"], fontSize: 2.1, color: Colors.white),
     actions: [
       MaterialButton(
         shape: const StadiumBorder(),
@@ -407,8 +431,9 @@ AppBar myAppBar(WorklogProvider provider, BuildContext context,
               context,
               MaterialPageRoute(
                   builder: (context) => MySubWorksScreen(
-                        subWorkId: workDetails.subWork,
+                        workId: workId,
                         work: workDetails,
+                        empCode: empCode,
                       )));
         },
         child: Row(
@@ -427,17 +452,17 @@ AppBar myAppBar(WorklogProvider provider, BuildContext context,
 
 Color getTextColor(String text) {
   switch (text) {
-    case "Low Priority":
+    case "Low":
       return Colors.green;
-    case "Mid Priority":
+    case "Mid":
       return Colors.yellow;
-    case "High Priority":
+    case "High":
       return Colors.red;
-    case "Completed":
+    case "COMPLETED":
       return const Color.fromARGB(255, 124, 251, 128);
-    case "In Progress":
+    case "PENDING":
       return const Color.fromARGB(255, 202, 186, 41);
-    case "On Hold":
+    case "ON_HOLD":
       return const Color.fromARGB(255, 133, 198, 252);
     default:
       return Colors.black;

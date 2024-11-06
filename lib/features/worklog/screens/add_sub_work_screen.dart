@@ -5,7 +5,7 @@ import 'package:dots_ticcket_module/common/common.dart';
 import 'package:dots_ticcket_module/features/worklog/provider/sub_works_provider.dart';
 import 'package:dots_ticcket_module/features/worklog/screens/my_sub_works_screen.dart';
 import 'package:dots_ticcket_module/features/worklog/widgets/sub_work_screen_widgets.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localization.dart';
@@ -14,14 +14,20 @@ class AddSubWorkScreen extends StatefulWidget {
   AddSubWorkScreen(
       {super.key,
       this.isToEdit = false,
-      required this.subWorkId,
+      required this.empCode,
+      required this.workId,
+      required this.work,
+      this.subWorkId,
       this.subWorkToEdit,
-      required this.work});
+      this.subWorkAttachments});
 
   bool isToEdit;
-  String subWorkId;
-  SubWorks? subWorkToEdit;
-  Works work;
+  Map? subWorkToEdit;
+  List? subWorkAttachments;
+  String empCode;
+  String workId;
+  Map work;
+  int? subWorkId;
   @override
   State<AddSubWorkScreen> createState() => _AddSubWorkScreenState();
 }
@@ -54,7 +60,8 @@ class _AddSubWorkScreenState extends State<AddSubWorkScreen> {
               MaterialPageRoute(
                   builder: (context) => MySubWorksScreen(
                         work: widget.work,
-                        subWorkId: widget.subWorkId,
+                        empCode: widget.empCode,
+                        workId: widget.workId,
                       )));
           Navigator.pop(context);
         }
@@ -78,253 +85,281 @@ class _AddSubWorkScreenState extends State<AddSubWorkScreen> {
                         MaterialPageRoute(
                             builder: (context) => MySubWorksScreen(
                                   work: widget.work,
-                                  subWorkId: widget.subWorkId,
+                                  empCode: widget.empCode,
+                                  workId: widget.workId,
                                 )));
                     Navigator.pop(context);
                   }
                 },
               ),
-              title:
-                  myText(language.dailyLog, fontSize: 2, color: Colors.white),
+              title: myText(
+                  widget.isToEdit ? language.update : language.dailyLog,
+                  fontSize: 2,
+                  color: Colors.white),
               actions: [
                 myLanguageButton(),
                 mySpacer(width: SizeConfigure.widthMultiplier! * 4.5)
               ],
             ),
-            body: InkWell(
-              onTap: () {
-                FocusScope.of(context).requestFocus(FocusNode());
-              },
-              child: Container(
-                height: MediaQuery.of(context).size.height,
-                width: MediaQuery.of(context).size.width,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 4),
-                      myText(
-                        language.workDetails,
-                        fontSize: 1.9,
-                        fontWeight: FontWeight.bold,
+            body: Stack(
+              children: [
+                InkWell(
+                  onTap: () {
+                    FocusScope.of(context).requestFocus(FocusNode());
+                  },
+                  child: Container(
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(40),
+                        topRight: Radius.circular(40),
                       ),
-                      const Divider(),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 4),
+                          myText(
+                            language.workDetails,
+                            fontSize: 1.9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          const Divider(),
 
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3),
-                      //work title dropdown
-                      myTypeHeadDropDown(
-                          items: Provider.of<CommonProvider>(context,
-                                  listen: false)
-                              .workTitle,
-                          hintText: language.workTitle,
-                          labelText: language.workTitle,
-                          value: provider.workTitle,
-                          onSelected: (workTitle) {
-                            provider.workTitle = workTitle;
-                            provider.rebuild();
-                          },
-                          onCancel: () {
-                            provider.workTitle = null;
-
-                            provider.rebuild();
-                          }),
-
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3),
-                      //work description field
-                      myTextfield(language.workDescription,
-                          controller: workDescriptionController),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3.2),
-                      //time section
-                      SizedBox(
-                        height: SizeConfigure.widthMultiplier! * 12,
-                        width: MediaQuery.of(context).size.width,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                                onTap: () async {
-                                  FocusScope.of(context)
-                                      .requestFocus(FocusNode());
-                                  TimeOfDay? time = await showTimePicker(
-                                      context: context,
-                                      initialTime: TimeOfDay.now());
-
-                                  if (time != null) {
-                                    provider.startTime = time;
-                                  }
-                                  provider.rebuild();
-                                },
-                                child: timeDisplayWidget(provider.startTime,
-                                    language.startTime, context)),
-                            myText("TO",
-                                fontSize: 1.8, fontWeight: FontWeight.w500),
-                            InkWell(
-                              onTap: () async {
-                                FocusScope.of(context)
-                                    .requestFocus(FocusNode());
-                                TimeOfDay? time = await showTimePicker(
-                                    context: context,
-                                    initialTime: TimeOfDay.now());
-                                if (time != null) {
-                                  provider.endTime = time;
-                                }
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 3),
+                          //work title dropdown
+                          myTypeHeadDropDown(
+                              items: Provider.of<CommonProvider>(context,
+                                      listen: false)
+                                  .workTitle,
+                              hintText: language.workTitle,
+                              labelText: language.workTitle,
+                              value: provider.workTitle,
+                              onSelected: (workTitle) {
+                                provider.workTitle = workTitle;
                                 provider.rebuild();
                               },
-                              child: timeDisplayWidget(
-                                  provider.endTime, language.endTime, context),
-                            ),
-                            Stack(
-                              children: [
-                                SizedBox(
-                                  height: SizeConfigure.widthMultiplier! * 12,
-                                  width: SizeConfigure.widthMultiplier! * 25,
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: Container(
-                                      height:
-                                          SizeConfigure.widthMultiplier! * 10.6,
-                                      width:
-                                          SizeConfigure.widthMultiplier! * 42,
-                                      decoration: BoxDecoration(
-                                          color: kMainColor.withOpacity(.2),
-                                          borderRadius: const BorderRadius.all(
-                                              Radius.circular(10))),
-                                      child: Center(
-                                        child: myText(
-                                            provider.startTime != null &&
-                                                    provider.endTime != null
-                                                ? getTotalTime(
-                                                    provider.startTime!,
-                                                    provider.endTime!,
-                                                    provider)
-                                                : "0:0",
-                                            fontSize: 2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                myText("   ${language.totalTime}",
-                                    fontSize: 1, fontWeight: FontWeight.w700),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3),
-                      //status section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          myText(language.status,
-                              fontSize: 2, fontWeight: FontWeight.w600),
-                          statusWidget(provider, "In Progress"),
-                          statusWidget(provider, "Completed"),
-                        ],
-                      ),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3),
-                      //notes field
-                      AutoNumberingTextField(
-                        hintText: language.notes,
-                        controller: notesController,
-                        maxLines: 3,
-                      ),
-                      //progress section
-                      widget.isToEdit
-                          ? SizedBox(
-                              height: SizeConfigure.widthMultiplier! * 2,
-                            )
-                          : Row(
+                              onCancel: () {
+                                provider.workTitle = null;
+
+                                provider.rebuild();
+                              }),
+
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 3),
+                          //work description field
+                          myTextfield(language.workDescription,
+                              controller: workDescriptionController),
+                          mySpacer(
+                              height: SizeConfigure.widthMultiplier! * 3.2),
+                          //time section
+                          SizedBox(
+                            height: SizeConfigure.widthMultiplier! * 12,
+                            width: MediaQuery.of(context).size.width,
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                myText(language.progress,
-                                    fontSize: 1.7,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color.fromARGB(
-                                        255, 103, 100, 100)),
-                                SizedBox(
-                                  width: MediaQuery.of(context).size.width -
-                                      SizeConfigure.widthMultiplier! * 36,
-                                  child: progressSliderWidget(
-                                      widget.work, provider),
+                                InkWell(
+                                    onTap: () async {
+                                      FocusScope.of(context)
+                                          .requestFocus(FocusNode());
+                                      TimeOfDay? time = await showTimePicker(
+                                          context: context,
+                                          initialTime: TimeOfDay.now());
+
+                                      if (time != null) {
+                                        provider.startTime = time;
+                                      }
+                                      provider.rebuild();
+                                    },
+                                    child: timeDisplayWidget(provider.startTime,
+                                        language.startTime, context)),
+                                myText("TO",
+                                    fontSize: 1.8, fontWeight: FontWeight.w500),
+                                InkWell(
+                                  onTap: () async {
+                                    FocusScope.of(context)
+                                        .requestFocus(FocusNode());
+                                    TimeOfDay? time = await showTimePicker(
+                                        context: context,
+                                        initialTime: TimeOfDay.now());
+                                    if (time != null) {
+                                      provider.endTime = time;
+                                    }
+                                    provider.rebuild();
+                                  },
+                                  child: timeDisplayWidget(provider.endTime,
+                                      language.endTime, context),
+                                ),
+                                Stack(
+                                  children: [
+                                    SizedBox(
+                                      height:
+                                          SizeConfigure.widthMultiplier! * 12,
+                                      width:
+                                          SizeConfigure.widthMultiplier! * 25,
+                                      child: Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: Container(
+                                          height:
+                                              SizeConfigure.widthMultiplier! *
+                                                  10.6,
+                                          width:
+                                              SizeConfigure.widthMultiplier! *
+                                                  42,
+                                          decoration: BoxDecoration(
+                                              color: kMainColor.withOpacity(.2),
+                                              borderRadius:
+                                                  const BorderRadius.all(
+                                                      Radius.circular(10))),
+                                          child: Center(
+                                            child: myText(
+                                                provider.startTime != null &&
+                                                        provider.endTime != null
+                                                    ? getTotalTime(
+                                                        provider.startTime!,
+                                                        provider.endTime!,
+                                                        provider)
+                                                    : "0:0",
+                                                fontSize: 2),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    myText("   ${language.totalTime}",
+                                        fontSize: 1,
+                                        fontWeight: FontWeight.w700),
+                                  ],
                                 ),
                               ],
                             ),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 1),
-                      //blocers and challeges field
-                      AutoNumberingTextField(
-                        hintText: language.blockersAndChallenges,
-                        controller: blockersController,
-                        minLines: 2,
-                        maxLines: 3,
+                          ),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 3),
+                          //status section
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              myText(language.status,
+                                  fontSize: 2, fontWeight: FontWeight.w600),
+                              statusWidget(provider, "In Progress"),
+                              statusWidget(provider, "Completed"),
+                            ],
+                          ),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 3),
+                          //notes field
+                          AutoNumberingTextField(
+                            hintText: language.notes,
+                            controller: notesController,
+                            maxLines: 3,
+                          ),
+                          //progress section
+                          widget.isToEdit
+                              ? SizedBox(
+                                  height: SizeConfigure.widthMultiplier! * 2,
+                                )
+                              : Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    myText(language.progress,
+                                        fontSize: 1.7,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color.fromARGB(
+                                            255, 103, 100, 100)),
+                                    SizedBox(
+                                      width: MediaQuery.of(context).size.width -
+                                          SizeConfigure.widthMultiplier! * 36,
+                                      child: progressSliderWidget(
+                                          widget.work, provider),
+                                    ),
+                                  ],
+                                ),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 1),
+                          //blocers and challeges field
+                          AutoNumberingTextField(
+                            hintText: language.blockersAndChallenges,
+                            controller: blockersController,
+                            minLines: 2,
+                            maxLines: 3,
+                          ),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 2),
+                          // attach file section
+                          subWorksAttachFilesection(
+                              context, provider, language),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 2),
+                          //submit section
+                          MaterialButton(
+                            onPressed: () async {
+                              if (widget.isToEdit) {
+                                if (await provider.updateWorklog(
+                                      widget.empCode,
+                                      widget.workId,
+                                      widget.subWorkId!,
+                                      provider.workTitle,
+                                      workDescriptionController.text,
+                                      notesController.text,
+                                      blockersController.text,
+                                      context,
+                                    ) &&
+                                    context.mounted) {
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              MySubWorksScreen(
+                                                work: widget.work,
+                                                empCode: widget.empCode,
+                                                workId: widget.workId,
+                                              )));
+                                  Navigator.pop(context);
+                                }
+                              } else {
+                                if (await provider.submitWorklog(
+                                      provider.workTitle,
+                                      workDescriptionController.text,
+                                      notesController.text,
+                                      blockersController.text,
+                                      widget.empCode,
+                                      widget.workId,
+                                      context,
+                                    ) &&
+                                    context.mounted) {
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              MySubWorksScreen(
+                                                empCode: widget.empCode,
+                                                workId: widget.workId,
+                                                work: widget.work,
+                                              )));
+                                  Navigator.pop(context);
+                                }
+                              }
+                            },
+                            minWidth: MediaQuery.of(context).size.width,
+                            color: kMainColor,
+                            shape: const StadiumBorder(),
+                            height: SizeConfigure.widthMultiplier! * 10,
+                            child: myText(
+                                widget.isToEdit
+                                    ? language.update
+                                    : language.submit,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          mySpacer(height: SizeConfigure.widthMultiplier! * 3)
+                        ],
                       ),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 2),
-                      // attach file section
-                      subWorksAttachFilesection(context, provider, language),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 2),
-                      //submit section
-                      MaterialButton(
-                        onPressed: () async {
-                          if (widget.isToEdit) {
-                            if (await provider.updateWorklog(
-                                  widget.subWorkToEdit!,
-                                  provider.workTitle,
-                                  workDescriptionController.text,
-                                  notesController.text,
-                                  blockersController.text,
-                                  context,
-                                  widget.subWorkId,
-                                ) &&
-                                context.mounted) {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => MySubWorksScreen(
-                                          work: widget.work,
-                                          subWorkId: widget.subWorkId)));
-                              Navigator.pop(context);
-                            }
-                          } else {
-                            if (await provider.submitWorklog(
-                                    provider.workTitle,
-                                    workDescriptionController.text,
-                                    notesController.text,
-                                    blockersController.text,
-                                    context,
-                                    widget.subWorkId,
-                                    widget.work.id) &&
-                                context.mounted) {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => MySubWorksScreen(
-                                          work: widget.work,
-                                          subWorkId: widget.subWorkId)));
-                              Navigator.pop(context);
-                            }
-                          }
-                        },
-                        minWidth: MediaQuery.of(context).size.width,
-                        color: kMainColor,
-                        shape: const StadiumBorder(),
-                        height: SizeConfigure.widthMultiplier! * 10,
-                        child: myText(
-                            widget.isToEdit ? language.update : language.submit,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      mySpacer(height: SizeConfigure.widthMultiplier! * 3)
-                    ],
+                    ),
                   ),
                 ),
-              ),
+                Visibility(
+                    visible: provider.isLoading, child: loadingWidget(context))
+              ],
             ),
           );
         },
@@ -335,15 +370,17 @@ class _AddSubWorkScreenState extends State<AddSubWorkScreen> {
   void fillEditDetails(SubWorkProvider provider) {
     provider.clear();
     if (widget.isToEdit) {
-      provider.workTitle = widget.subWorkToEdit!.taskName;
-      workTitleController.text = widget.subWorkToEdit!.taskName;
-      workDescriptionController.text = widget.subWorkToEdit!.taskDecription;
-      provider.status = widget.subWorkToEdit!.status;
-      notesController.text = widget.subWorkToEdit!.notes;
-      provider.startTime = toTimeOfDay(widget.subWorkToEdit!.startTime);
-      provider.endTime = toTimeOfDay(widget.subWorkToEdit!.endTime);
-      blockersController.text = widget.subWorkToEdit!.blockersAndChallanges;
-      provider.subWorkSttachments = widget.subWorkToEdit!.attachments;
+      provider.workTitle = widget.subWorkToEdit!["WORK_TITLE"];
+      workTitleController.text = widget.subWorkToEdit!["WORK_TITLE"];
+      workDescriptionController.text =
+          widget.subWorkToEdit!["WORK_DESCRIPTION"];
+      provider.status = widget.subWorkToEdit!["WORK_COMPLETED_FLAG"] == true
+          ? "Completed"
+          : "In Progress";
+      notesController.text = widget.subWorkToEdit!["WORK_NOTS"];
+      provider.startTime = toTimeOfDay(widget.subWorkToEdit!["START_TIME"]);
+      provider.endTime = toTimeOfDay(widget.subWorkToEdit!["END_TIME"]);
+      blockersController.text = widget.subWorkToEdit!["WORK_CHALLENGES"];
     }
   }
 }

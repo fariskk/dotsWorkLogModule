@@ -1,5 +1,4 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dots_ticcket_module/common/common_provider.dart';
 import 'package:dots_ticcket_module/common/size_configure.dart';
 import 'package:dots_ticcket_module/common/colors.dart';
@@ -8,7 +7,8 @@ import 'package:dots_ticcket_module/features/myWorks/provider/my_works_provider.
 import 'package:dots_ticcket_module/features/myWorks/screens/add_work_screen.dart';
 import 'package:dots_ticcket_module/features/worklog/screens/worklog_screen.dart';
 import 'package:dots_ticcket_module/features/worklog/widgets/worklog_screen_widgets.dart';
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
+import 'package:dots_ticcket_module/services/api_services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -17,14 +17,16 @@ import 'package:flutter_xlider/flutter_xlider.dart';
 import 'package:flutter_gen/gen_l10n/app_localization.dart';
 import 'package:provider/provider.dart';
 
-InkWell myWorksTile(BuildContext context, int index, Works workDetails,
-    MyWorksProvider provider, AppLocalizations language) {
+InkWell myWorksTile(BuildContext context, int index, Map workDetails,
+    MyWorksProvider provider, AppLocalizations language, String empCode) {
   return InkWell(
     onTap: () {
       Navigator.push(
           context,
           MaterialPageRoute(
               builder: (context) => WorklogScreen(
+                    workId: workDetails["WORKID"],
+                    empCode: empCode,
                     workDetailsIndex: index,
                   )));
     },
@@ -54,19 +56,23 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
                             child: myText(language.cancel)),
                         TextButton(
                             onPressed: () async {
-                              await FirebaseFirestore.instance
-                                  .collection("works")
-                                  .doc(workDetails.id)
-                                  .delete();
-                              var snapshots = await FirebaseFirestore.instance
-                                  .collection(workDetails.subWork)
-                                  .get();
-                              for (var doc in snapshots.docs) {
-                                await doc.reference.delete();
-                              }
                               if (context.mounted) {
                                 Navigator.pop(context);
                               }
+                              provider.isLoading = true;
+                              provider.rebuild();
+                              var res = await ApiServices.deleteWork(
+                                  empCode, workDetails["WORKID"]);
+
+                              if (res.data["result"].runtimeType == bool) {
+                                if (res.data["result"]) {
+                                  mySnackBar("Deleted Successfully", context);
+                                } else {
+                                  mySnackBar("Failed To Delete", context);
+                                }
+                              }
+                              provider.isLoading = false;
+
                               provider.rebuild();
                             },
                             child: myText(language.ok))
@@ -82,10 +88,13 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
             icon: Icons.edit,
             label: 'Edit',
             onPressed: (BuildContext context) {
+              provider.isLoading = true;
               Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (context) => AddWorkScreen(
+                            empCode: empCode,
+                            workId: workDetails["WORKID"],
                             isToEdit: true,
                             workToEdit: workDetails,
                           )));
@@ -124,9 +133,9 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
                             strokeWidth: 5,
                             strokeCap: StrokeCap.round,
                             color: Colors.green,
-                            value: workDetails.progress / 100,
+                            value: workDetails["PROGRESS"] / 100,
                           ),
-                          myText("${workDetails.progress}%", fontSize: 1)
+                          myText("${workDetails["PROGRESS"]}%", fontSize: 1)
                         ],
                       )),
                   mySpacer(width: SizeConfigure.widthMultiplier! * 3),
@@ -136,7 +145,7 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
                       mySpacer(height: SizeConfigure.widthMultiplier! * 1),
                       SizedBox(
                         width: SizeConfigure.widthMultiplier! * 35,
-                        child: myText(workDetails.taskName,
+                        child: myText(workDetails["TASK_NAME"] ?? "",
                             fontSize: 2,
                             fontWeight: FontWeight.w700,
                             color: kMainColor),
@@ -146,14 +155,16 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             myText(
-                                "Due Date : ${toDDMMMYYY(workDetails.endDate)}",
+                                "Due Date : ${toDDMMMYYY(workDetails["END_DATE"])}",
                                 fontSize: 1,
                                 color: const Color.fromARGB(255, 86, 85, 85)),
                             mySpacer(width: 30),
-                            myText(workDetails.status,
+                            myText(
+                                workDetails["WORK_STATUS"].replaceAll("_", " "),
                                 fontSize: 1.2,
                                 fontWeight: FontWeight.w700,
-                                color: getTextColor(workDetails.status)),
+                                color:
+                                    getTextColor(workDetails["WORK_STATUS"])),
                           ],
                         ),
                       )
@@ -171,9 +182,9 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                myText("     ${workDetails.id}",
+                myText("     ${workDetails["WORKID"]}",
                     maxLength: 30, fontSize: 1.7, fontWeight: FontWeight.bold),
-                Visibility(
+                /*  Visibility(
                   visible: workDetails.createdDate == getDate(DateTime.now()),
                   child: Container(
                     margin: const EdgeInsets.only(right: 20),
@@ -189,7 +200,7 @@ InkWell myWorksTile(BuildContext context, int index, Works workDetails,
                           color: Colors.white),
                     ),
                   ),
-                )
+                )*/
               ],
             )
           ],
@@ -234,9 +245,16 @@ Container mySortByDateRangeWidget(
                 provider.rebuild();
               }
             },
-            child: const Icon(
-              Icons.calendar_month,
-              size: 20,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month,
+                  size: 20,
+                ),
+                mySpacer(width: 1.5),
+                myText("Select Date",
+                    fontWeight: FontWeight.w300, fontSize: 1.4)
+              ],
             ))
         : Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -276,7 +294,8 @@ SizedBox mySortDropDown(
             items: items
                 .map((e) => DropdownMenuItem(
                       value: e,
-                      child: myText(e, fontSize: 1.5, color: Colors.black),
+                      child: myText(e.replaceAll("_", "  ").toUpperCase(),
+                          fontSize: 1.5, color: Colors.black),
                     ))
                 .toList(),
             onChanged: (value) {
@@ -528,18 +547,17 @@ SizedBox addWorkAttachFilesection(
                   type: FileType.custom,
                   allowedExtensions: [
                     'jpg',
-                    'xls',
-                    'xlsx',
-                    'pdf',
-                    'xlsm',
-                    'csv',
                   ],
                 );
                 if (files != null) {
+                  if (files.count > 3) {
+                    mySnackBar("File count is Grater Than 3", context);
+                    return;
+                  }
                   for (var file in files.files) {
-                    if (file.size / 1024 > 10000) {
+                    if (file.size / 1024 > 400) {
                       mySnackBar(
-                          "${file.name} Size is Grater Than 10 MB", context);
+                          "${file.name} Size is Grater Than 400 KB", context);
                       continue;
                     }
 

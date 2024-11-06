@@ -1,3 +1,4 @@
+import 'package:dots_ticcket_module/common/colors.dart';
 import 'package:dots_ticcket_module/common/size_configure.dart';
 import 'package:dots_ticcket_module/common/common_provider.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_gen/gen_l10n/app_localization.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 
 Text myText(String text,
     {double? fontSize,
@@ -96,6 +98,7 @@ TypeAheadField myTypeHeadDropDown(
     },
     builder: (context, controller, focusNode) {
       controller.text = value ?? "";
+
       controller.addListener(
         () {
           if (items.contains(controller.text)) {
@@ -120,7 +123,8 @@ TypeAheadField myTypeHeadDropDown(
               },
               readOnly: items.contains(controller.text),
               style: TextStyle(fontSize: SizeConfigure.textMultiplier! * 1.8),
-              controller: controller,
+              controller: TextEditingController(
+                  text: controller.text.split("-").last.replaceAll("_", " ")),
               focusNode: focusNode,
               decoration: InputDecoration(
                 suffixIcon: Visibility(
@@ -144,7 +148,9 @@ TypeAheadField myTypeHeadDropDown(
     itemBuilder: (context, sugession) {
       return Padding(
         padding: const EdgeInsets.all(10.0),
-        child: myText(sugession, textOverflow: TextOverflow.visible),
+        child: myText(
+            sugession.toString().split("-").last.replaceAll("_", "  "),
+            textOverflow: TextOverflow.visible),
       );
     },
     onSelected: (workGroup) {
@@ -172,11 +178,11 @@ TextField myTextfield(String hintText,
 }
 
 String getDate(DateTime date) {
-  return "${date.day}/${date.month}/${date.year}";
+  return "${date.day}-${date.month}-${date.year}";
 }
 
 int getDateDiffrence(String date) {
-  List dateParts = date.split("/");
+  List dateParts = date.split("-");
   int days = DateTime(int.parse(dateParts[2]), int.parse(dateParts[1]),
           int.parse(dateParts[0]))
       .difference(DateTime.now())
@@ -226,9 +232,13 @@ String to12Hours(String time) {
 }
 
 String toDDMMMYYY(String date) {
-  List dateParts = date.split("/");
+  List dateParts = date.split("-");
   return "${dateParts[0]}-${getMountString(dateParts[1])}-${dateParts[2]}"
       .toUpperCase();
+}
+
+String dateTimetoDDMMYYY(DateTime date) {
+  return "${date.day}-${date.month}-${date.year}";
 }
 
 class AutoNumberingTextField extends StatefulWidget {
@@ -358,4 +368,68 @@ PopupMenuButton<dynamic> myLanguageButton() {
           ),
         ];
       });
+}
+
+class LoadingScreen extends StatelessWidget {
+  const LoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kMainColor,
+      appBar: AppBar(
+        backgroundColor: kMainColor,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Colors.white,
+          ),
+          onPressed: () async {},
+        ),
+        title: myText("Loading...", fontSize: 2.5, color: Colors.white),
+      ),
+      body: Container(
+        height: MediaQuery.of(context).size.height,
+        width: MediaQuery.of(context).size.width,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(40),
+            topRight: Radius.circular(40),
+          ),
+        ),
+        child: Center(
+          child: SizedBox(
+              height: 100,
+              width: 100,
+              child: Lottie.asset("assets/animations/loading.json")),
+        ),
+      ),
+    );
+  }
+}
+
+Widget loadingWidget(BuildContext context) {
+  return Container(
+    color: Colors.transparent,
+    height: MediaQuery.of(context).size.height,
+    width: MediaQuery.of(context).size.width,
+    child: Center(
+      child: SizedBox(
+          height: 100,
+          width: 100,
+          child: Lottie.asset("assets/animations/loading.json")),
+    ),
+  );
+}
+
+getPriorityInString(bool low, bool mid, bool high) {
+  if (low) {
+    return "Low";
+  } else if (mid) {
+    return "Mid";
+  } else {
+    return "High";
+  }
 }

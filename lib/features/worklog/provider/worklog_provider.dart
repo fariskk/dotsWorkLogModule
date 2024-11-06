@@ -1,4 +1,4 @@
-import 'package:dots_ticcket_module/utils/dummy_data.dart';
+import 'package:dots_ticcket_module/models/models.dart';
 import 'package:flutter/material.dart';
 
 class WorklogProvider extends ChangeNotifier {
